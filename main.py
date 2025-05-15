@@ -44,6 +44,7 @@ class Measurement:
     group: str
     description: str
     actual: str
+    unit: str
 
 @dataclass
 class ParsedData:
@@ -54,9 +55,9 @@ class ParsedData:
 def parse_dataframe(df: pd.DataFrame) -> List[Measurement]:
     print(f"[DEBUG] Parsing DataFrame with {len(df)} rows")
     parsed = [
-        Measurement(row[0], row[1], row[2])
+        Measurement(row[0], row[1], row[2], row[3])
         for row in df.itertuples(index=False)
-        if len(row) >= 3
+        if len(row) >= 4
     ]
     print(f"[DEBUG] Parsed {len(parsed)} Measurement entries")
     return parsed
@@ -64,29 +65,24 @@ def parse_dataframe(df: pd.DataFrame) -> List[Measurement]:
 def load_vehicle_data(data_dir: str, config: Dict) -> ParsedData:
     parsed = ParsedData()
 
+    # 各モジュールの必要なIDを集める
+    target_ids = set()
     if 'modules' in config:
-        for module_name, module_info in config['modules'].items():
-            filename = module_info.get('file')
-            if not filename:
-                print(f"[WARNING] No file specified for {module_name}")
-                continue
+        for module in config['modules'].values():
+            for item in module.get('items', []):
+                target_ids.add(item['id'])
 
-            file_path = os.path.join(data_dir, filename)
-            print(f"[DEBUG] Loading module '{module_name}' from {file_path}")
+    # 全 blockmap ファイルを対象に
+    for fname in os.listdir(data_dir):
+        if fname.startswith("blockmap") and fname.endswith(".csv"):
+            path = os.path.join(data_dir, fname)
+            print(f"[DEBUG] Loading blockmap file: {path}")
+            df = load_csv(path)
+            print(f"[DEBUG] DataFrame head:\n{df.head()}")
+            parsed.blockmap.extend(parse_dataframe(df))
 
-            if os.path.exists(file_path):
-                df = load_csv(file_path)
-                print(f"[DEBUG] DataFrame loaded from {filename}, shape={df.shape}")
-
-                measurements = parse_dataframe(df)
-
-                # 「blockmap」だけを対象に格納
-                if "blockmap" in filename:
-                    parsed.blockmap.extend(measurements)
-                else:
-                    print(f"[INFO] Skipped (not blockmap): {filename}")
-            else:
-                print(f"[WARNING] File not found: {file_path}")
+    # フィルタリング：必要な ID のみ
+    parsed.blockmap = [m for m in parsed.blockmap if m.group in target_ids]
 
     return parsed
 
@@ -99,10 +95,10 @@ def generate_markdown_report(parsed: ParsedData, comment: str) -> str:
     lines = ["# VCDS 車両診断レポート\n"]
     lines.append("## ブロックマップ\n")
     for m in parsed.blockmap:
-        lines.append(f"- {m.group}: {m.description} = {m.actual}")
+        lines.append(f"- {m.group}: {m.description} = {m.actual} {m.unit}")
     lines.append("\n## アダプテーション\n")
     for m in parsed.adaptation:
-        lines.append(f"- {m.group}: {m.description} = {m.actual}")
+        lines.append(f"- {m.group}: {m.description} = {m.actual} {m.unit}")
     lines.append("\n## コメント\n")
     lines.append(comment)
     return "\n".join(lines)
