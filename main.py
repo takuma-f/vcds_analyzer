@@ -120,7 +120,7 @@ def write_report_to_file(markdown_text: str, output_path: str):
 # ===== 実行例（テスト用） =====
 if __name__ == '__main__':
     config_path = './config/config_golf7_cs.yaml'
-    data_dir = './data'
+    data_dir = Path('./data')
     output_dir = Path('./output')
     output_dir.mkdir(exist_ok=True)
 
