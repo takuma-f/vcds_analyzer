@@ -1,0 +1,6 @@
+pyyaml
+pandas
+markdown
+pdfkit
+jinja2
+chardet
