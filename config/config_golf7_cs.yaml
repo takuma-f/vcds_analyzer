@@ -1,0 +1,192 @@
+vehicle:
+  name: VW Golf MK7 GTI Clubsport
+  model_code: AU
+  gearbox: DQ250
+  engine_code: CHH
+  vin_prefix: WVWZZZ
+
+modules:
+  01-engine:
+    file: blockmap-01.csv
+    items:
+      - id: IDE00021
+        name: Engine speed
+        unit: rpm
+        importance: high
+      - id: IDE00196
+        name: Engine oil temperature
+        unit: "°C"
+        importance: high
+      - id: IDE00188
+        name: "Fuel high-pressure: actual value"
+        unit: bar
+        importance: high
+      - id: IDE00186
+        name: "Fuel low pressure: actual value"
+        unit: bar
+        importance: medium
+      - id: IDE00371
+        name: Fuel consumption
+        unit: l/h
+        importance: medium
+      - id: IDE00201
+        name: "High fuel pressure: specified value"
+        unit: bar
+        importance: medium
+      - id: IDE00202
+        name: "Low fuel pressure: specified value"
+        unit: bar
+        importance: medium
+      - id: IDE00593
+        name: Ignition timing adjustment cylinder 1
+        unit: Degrees
+        importance: medium
+      - id: IDE00597
+        name: Long term adaptation of mixture formation bank 1
+        unit: "%"
+        importance: medium
+      - id: IDE00604
+        name: Short term adaptation of mixture formation bank 1
+        unit: "%"
+        importance: medium
+      - id: IDE00167
+        name: Exhaust temperature 1 bank 1
+        unit: "°C"
+        importance: high
+      - id: IDE02116
+        name: Exhaust gas temperature before catalytic converter
+        unit: "°C"
+        importance: high
+      - id: IDE00495
+        name: Calculated oil temperature
+        unit: "°C"
+        importance: medium
+      - id: IDE00380
+        name: "Coolant fan 1: activation"
+        unit: "%"
+        importance: low
+      - id: IDE00025
+        name: Coolant temperature
+        unit: "°C"
+        importance: high
+      - id: IDE00348
+        name: Intake air temperature
+        unit: "°C"
+        importance: medium
+      - id: IDE00350
+        name: "Air mass: specified value"
+        unit: kg/h
+        importance: medium
+      - id: IDE03711
+        name: Mass flow through throttle valve
+        unit: kg/h
+        importance: low
+      - id: IDE01922
+        name: Vehicle distance driven
+        unit: km
+        importance: high
+      - id: IDE02756
+        name: Number of manual engine starts
+        unit: count
+        importance: medium
+      - id: IDE02757
+        name: Number of automatic engine starts
+        unit: count
+        importance: medium
+
+  02-transmission:
+    file: blockmap-02.csv
+    items:
+      - id: IDE02790-ENG104124
+        name: Specified torque clutch 1
+        unit: Nm
+        importance: high
+      - id: IDE02800-ENG100171
+        name: Specified torque clutch 2
+        unit: Nm
+        importance: high
+      - id: IDE02797-ENG100730
+        name: Current valve clutch 1 actual value
+        unit: mA
+        importance: high
+      - id: IDE02806-ENG103118
+        name: Current valve clutch 2 actual value
+        unit: mA
+        importance: high
+      - id: ENG120991
+        name: Lower adapted clutch point K1 (micro slip adaptation)
+        unit: mA
+        importance: high
+      - id: ENG120992
+        name: Lower adapted clutch point K2 (micro slip adaptation)
+        unit: mA
+        importance: high
+      - id: ENG120993
+        name: Upper adapted clutch point K1 (macro slip adaptation)
+        unit: mA
+        importance: high
+      - id: ENG120994
+        name: Upper adapted clutch point K2 (macro slip adaptation)
+        unit: mA
+        importance: high
+      - id: ENG120924
+        name: Clutch 1 upper pressure point (current-pressure adaptation)
+        unit: mA
+        importance: medium
+      - id: ENG120926
+        name: Clutch 2 upper pressure point (current-pressure adaptation)
+        unit: mA
+        importance: medium
+      - id: ENG110530
+        name: Clutch 1 kiss point fault counter
+        unit: null
+        importance: medium
+      - id: ENG110536
+        name: Clutch 2 kiss point fault counter
+        unit: null
+        importance: medium
+      - id: ENG80296-ENG127853
+        name: Clutch 1 adaption kiss point part 1 success counter
+        unit: null
+        importance: low
+      - id: ENG80298-ENG127880
+        name: Clutch 2 adaption kiss point part 1 success counter
+        unit: null
+        importance: low
+
+thresholds:
+  clutch_wear_joules:
+    warning: 400000
+    critical: 500000
+  clutch_temp_celsius:
+    warning: 190
+    critical: 230
+  engine_hours:
+    warning: 1500
+    critical: 2500
+  brake_pressure:
+    warning: 80
+    critical: 100
+
+ai_profiles:
+  sport:
+    usage_type: sport
+    frequency: high
+    notes: >
+      オーナーはサーキット走行も定期的に行うため、
+      高回転・高温領域の使用履歴やフリクションエネルギーに基づいた
+      メンテナンス予測が必要。
+
+  touring:
+    usage_type: touring
+    frequency: medium
+    notes: >
+      長距離移動に重点があり、安定動作と冷却系の信頼性を重視。
+      ATF温度推移や油圧制御の安定性に注目したい。
+
+  city:
+    usage_type: city
+    frequency: daily
+    notes: >
+      通勤や街乗り中心で、低速・ストップ＆ゴーの頻度が高い。
+      クラッチ温度・摩耗・ショック発進傾向を重視。
