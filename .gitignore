@@ -1,0 +1,8 @@
+# Directory
+./data
+./org
+./output
+./venv
+
+# File type
+*.csv
