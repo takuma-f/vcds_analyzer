@@ -48,8 +48,8 @@ class Measurement:
 
 @dataclass
 class ParsedData:
-    blockmap: List[Measurement] = field(default_factory=list)
-    adaptation: List[Measurement] = field(default_factory=list)
+    blockmap_by_module: Dict[str, List[Measurement]] = field(default_factory=dict)
+    adaptation_by_module: Dict[str, List[Measurement]] = field(default_factory=dict)
 
 # ===== データの構造化 =====
 def parse_dataframe(df: pd.DataFrame) -> List[Measurement]:
@@ -65,43 +65,44 @@ def parse_dataframe(df: pd.DataFrame) -> List[Measurement]:
 def load_vehicle_data(data_dir: str, config: Dict) -> ParsedData:
     parsed = ParsedData()
 
-    # 各モジュールの必要なIDを集める
-    target_ids = set()
-    if 'modules' in config:
-        for module in config['modules'].values():
-            for item in module.get('items', []):
-                target_ids.add(item['id'])
+    for module_name, module_cfg in config.get('modules', {}).items():
+        module_file = module_cfg.get('file')
+        if not module_file:
+            continue
+        path = os.path.join(data_dir, module_file)
+        df = load_csv(path)
+        if df.empty:
+            continue
+        all_data = parse_dataframe(df)
 
-    # 全 blockmap ファイルを対象に
-    for fname in os.listdir(data_dir):
-        if fname.startswith("blockmap") and fname.endswith(".csv"):
-            path = os.path.join(data_dir, fname)
-            print(f"[DEBUG] Loading blockmap file: {path}")
-            df = load_csv(path)
-            print(f"[DEBUG] DataFrame head:\n{df.head()}")
-            parsed.blockmap.extend(parse_dataframe(df))
-
-    # フィルタリング：必要な ID のみ
-    parsed.blockmap = [m for m in parsed.blockmap if m.group in target_ids]
+        # 必要なIDだけフィルタリング
+        target_ids = {item['id'] for item in module_cfg.get('items', [])}
+        filtered = [m for m in all_data if m.group in target_ids]
+        parsed.blockmap_by_module[module_name] = filtered
 
     return parsed
+
 
 # ===== コメント生成（AI接続は後で実装） =====
 def generate_comment(parsed: ParsedData, intent: str) -> str:
     return f"[COMMENT_PLACEHOLDER for intent={intent}]"
 
 # ===== Markdownレポート生成 =====
-def generate_markdown_report(parsed: ParsedData, comment: str) -> str:
+def generate_markdown_report(parsed: ParsedData, config: Dict, comment: str) -> str:
     lines = ["# VCDS 車両診断レポート\n"]
     lines.append("## ブロックマップ\n")
-    for m in parsed.blockmap:
-        lines.append(f"- {m.group}: {m.description} = {m.actual} {m.unit}")
-    lines.append("\n## アダプテーション\n")
-    for m in parsed.adaptation:
-        lines.append(f"- {m.group}: {m.description} = {m.actual} {m.unit}")
+
+    for module_name, measurements in parsed.blockmap_by_module.items():
+        module_title = config["modules"].get(module_name, {}).get("file", module_name)
+        lines.append(f"### {module_title}")
+        for m in measurements:
+            lines.append(f"- {m.description}: {m.actual} {m.unit}")
+
+    lines.append("\n## アダプテーション\n（未対応）")
     lines.append("\n## コメント\n")
     lines.append(comment)
     return "\n".join(lines)
+
 
 # ===== Markdown -> PDF変換 =====
 def convert_markdown_to_pdf(markdown_path: str, output_pdf_path: str, wkhtmltopdf_path: Optional[str] = None):
@@ -129,7 +130,7 @@ if __name__ == '__main__':
 
     parsed_data = load_vehicle_data(data_dir, config)
     comment = generate_comment(parsed_data, intent='sports')
-    markdown_text = generate_markdown_report(parsed_data, comment)
+    markdown_text = generate_markdown_report(parsed_data, config, comment)
 
     output_md_path = output_dir / 'report.md'
     output_pdf_path = output_dir / 'report.pdf'
