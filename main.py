@@ -1,5 +1,6 @@
 import os
 import glob
+import json
 import yaml
 import pandas as pd
 import markdown
@@ -82,6 +83,38 @@ def load_vehicle_data(data_dir: str, config: Dict) -> ParsedData:
 
     return parsed
 
+# ===== DiagScan の読み込み・整形 =====
+def load_diagscan_summary(json_path: str) -> str:
+    if not os.path.exists(json_path):
+        print(f"[WARNING] DiagScan summary not found at {json_path}")
+        return ""
+    
+    with open(json_path, 'r', encoding='utf-8') as f:
+        diag = json.load(f)
+
+    lines = []
+    vehicle_info = diag.get('vehicle_info', {})
+    lines.append("## 車両情報")
+    lines.append(f"- VIN: {vehicle_info.get('VIN', '不明')}")
+    lines.append(f"- 走行距離: {vehicle_info.get('mileage', '不明')}\n")
+
+    lines.append("## モジュールステータス一覧")
+    for module in diag.get('modules', []):
+        lines.append(f"- {module['module']}: {module['status']}")
+    lines.append("")
+
+    if diag.get('faults'):
+        lines.append("## 故障コード一覧")
+        for fault in diag['faults']:
+            lines.append(f"### {fault['address']} - {fault['description']}")
+            for code in fault['codes']:
+                lines.append(f"- {code['code']}: {code['text']} ({code['status']})")
+            lines.append("")
+    else:
+        lines.append("## 故障コード一覧")
+        lines.append("全モジュールに異常は検出されませんでした。\n")
+
+    return "\n".join(lines)
 
 # ===== コメント生成（AI接続は後で実装） =====
 def generate_comment(parsed: ParsedData, intent: str) -> str:
@@ -89,9 +122,14 @@ def generate_comment(parsed: ParsedData, intent: str) -> str:
 
 # ===== Markdownレポート生成 =====
 def generate_markdown_report(parsed: ParsedData, config: Dict, comment: str) -> str:
-    lines = ["# VCDS 車両診断レポート\n"]
-    lines.append("## ブロックマップ\n")
 
+    lines = ["# VCDS 車両診断レポート\n"]
+    diagscan_path = './data/parsed_diagscan.json'
+    diag_section = load_diagscan_summary(diagscan_path)
+    if diag_section:
+        lines.append(diag_section)
+
+    lines.append("## ブロックマップ\n")
     for module_name, measurements in parsed.blockmap_by_module.items():
         module_title = config["modules"].get(module_name, {}).get("file", module_name)
         lines.append(f"### {module_title}")

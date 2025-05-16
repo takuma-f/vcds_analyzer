@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 import chardet
 import pandas as pd
 
@@ -71,6 +72,7 @@ def parse_diagscan(filename):
 
     vehicle_info = {}
     module_status = []
+    fault_blocks = []
 
     vin_match = re.search(r'VIN:\s+([A-Z0-9]+)', text)
     mileage_match = re.search(r'Mileage:\s+([0-9,]+km-[0-9,]+mi)', text)
@@ -80,25 +82,58 @@ def parse_diagscan(filename):
     if vin_match:
         vehicle_info['VIN'] = vin_match.group(1)
     if mileage_match:
-        vehicle_info['Mileage'] = mileage_match.group(1)
+        vehicle_info['mileage'] = mileage_match.group(1)
     if date_match:
-        vehicle_info['Date'] = f"{date_match.group(1)}, {date_match.group(2)} {date_match.group(3)} {date_match.group(4)} {date_match.group(5)}"
+        vehicle_info['date'] = f"{date_match.group(1)}, {date_match.group(2)} {date_match.group(3)} {date_match.group(4)} {date_match.group(5)}"
     if vcds_version:
-        vehicle_info['VCDS Version'] = vcds_version.group(1)
+        vehicle_info['vcds_version'] = vcds_version.group(1)
 
+    # for line in text.splitlines():
+    #     if re.match(r'^\d{2}-.*-- Status: ', line):
+    #         parts = line.split('-- Status: ')
+    #         if len(parts) == 2:
+    #             module_status.append({
+    #                 'module': parts[0].strip(),
+    #                 'status': parts[1].strip()
+    #             })
     for line in text.splitlines():
-        if re.match(r'^\d{2}-.*-- Status: ', line):
+        if re.match(r'^[0-9A-F]{2}-.*-- Status: ', line, re.IGNORECASE):
             parts = line.split('-- Status: ')
             if len(parts) == 2:
                 module_status.append({
-                    'Module': parts[0].strip(),
-                    'Status': parts[1].strip()
+                    'module': parts[0].strip(),
+                    'status': parts[1].strip()
                 })
 
-    print("[✓] Parsed Vehicle Info:", vehicle_info)
-    print("[✓] Parsed Module Statuses:")
-    for m in module_status:
-        print(f"  - {m['Module']}: {m['Status']}")
+    # Optional: 故障コードブロックの抽出（後で本格実装）
+    fault_pattern = re.compile(r'Address (\d+): (.+?)\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+(.*?)\n', re.DOTALL)
+    fault_matches = fault_pattern.findall(text)
+    for addr, desc, fault_text in fault_matches:
+        if "No fault code found" not in fault_text:
+            fault_blocks.append({
+                "address": addr,
+                "description": desc.strip(),
+                "codes": [
+                    {
+                        "code": fault_text.strip(),
+                        "text": "",  # 詳細な分割は後で
+                        "status": "Intermittent"
+                    }
+                ]
+            })
+
+    # 保存
+    output = {
+        "vehicle_info": vehicle_info,
+        "modules": module_status,
+        "faults": fault_blocks
+    }
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(os.path.join(OUTPUT_DIR, "parsed_diagscan.json"), "w", encoding="utf-8") as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+
+    print("[✓] Saved parsed DiagScan to ./data/parsed_diagscan.json")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
