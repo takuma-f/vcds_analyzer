@@ -108,7 +108,12 @@ def load_diagscan_summary(json_path: str) -> str:
         for fault in diag['faults']:
             lines.append(f"### {fault['address']} - {fault['description']}")
             for code in fault['codes']:
-                lines.append(f"- {code['code']}: {code['text']} ({code['status']})")
+                code_line = code.get("code_line", "").strip()
+                lines.append(f"- **{code_line} **")
+                lines.append(f"  - 状態: {code['status']}")
+                lines.append("  - 詳細:")
+                for detail_line in code['details'].splitlines():
+                    lines.append(f"    {detail_line}")
             lines.append("")
     else:
         lines.append("## 故障コード一覧")
