@@ -87,15 +87,6 @@ def parse_diagscan(filename):
         vehicle_info['date'] = f"{date_match.group(1)}, {date_match.group(2)} {date_match.group(3)} {date_match.group(4)} {date_match.group(5)}"
     if vcds_version:
         vehicle_info['vcds_version'] = vcds_version.group(1)
-
-    # for line in text.splitlines():
-    #     if re.match(r'^\d{2}-.*-- Status: ', line):
-    #         parts = line.split('-- Status: ')
-    #         if len(parts) == 2:
-    #             module_status.append({
-    #                 'module': parts[0].strip(),
-    #                 'status': parts[1].strip()
-    #             })
     for line in text.splitlines():
         if re.match(r'^[0-9A-F]{2}-.*-- Status: ', line, re.IGNORECASE):
             parts = line.split('-- Status: ')
@@ -105,21 +96,50 @@ def parse_diagscan(filename):
                     'status': parts[1].strip()
                 })
 
-    # Optional: 故障コードブロックの抽出（後で本格実装）
-    fault_pattern = re.compile(r'Address (\d+): (.+?)\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+.*?\n\s+(.*?)\n', re.DOTALL)
-    fault_matches = fault_pattern.findall(text)
-    for addr, desc, fault_text in fault_matches:
-        if "No fault code found" not in fault_text:
+    # 故障コードの抽出
+    # 故障コードの抽出
+    fault_blocks = []
+
+    address_block_pattern = re.compile(r'^Address (\w+): (.+?)\n(.*?)(?=^Address |\Z)', re.DOTALL | re.MULTILINE)
+
+    for match in address_block_pattern.finditer(text):
+        address = match.group(1)
+        description = match.group(2).strip()
+        block = match.group(3)
+
+        if "No fault code found." in block:
+            continue
+
+        fault_count_match = re.search(r'^\s*(\d{1,2})\s+Fault[s]? Found:', block, re.MULTILINE)
+        if not fault_count_match:
+            continue
+
+        # 各故障ブロックを抽出（番号付き行 + インデントで続く行）
+        fault_entry_pattern = re.compile(
+            r'^\s*(\d+)\s+-\s+(.*?)\n((?:\s{6,}.+\n)+)',
+            re.MULTILINE
+        )
+        codes = []
+        for fault_match in fault_entry_pattern.finditer(block):
+            fault_number = fault_match.group(1).strip()
+            title = fault_match.group(2).strip()
+            detail_block = fault_match.group(3)
+
+            detail_lines = [line.strip() for line in detail_block.strip().splitlines()]
+            details = "\n".join(detail_lines)
+            status = "Intermittent" if "Intermittent" in details else "Confirmed"
+
+            codes.append({
+                "code_line": f"{fault_number} - {title}",
+                "details": details,
+                "status": status
+            })
+
+        if codes:
             fault_blocks.append({
-                "address": addr,
-                "description": desc.strip(),
-                "codes": [
-                    {
-                        "code": fault_text.strip(),
-                        "text": "",  # 詳細な分割は後で
-                        "status": "Intermittent"
-                    }
-                ]
+                "address": address,
+                "description": description,
+                "codes": codes
             })
 
     # 保存
