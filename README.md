@@ -23,13 +23,13 @@ This tool parses VCDS diagnostic logs (blockmap, adapmap, diagscan) for Volkswag
 
 ```
 .
-├── org/                 # 入力用CSV・DiagScanファイル保存先
-├── data/                # クレンジング後CSV・解析JSON出力先
-├── output/              # Markdown / PDF 出力先
-├── config/              # YAML 構成ファイル保存先
-├── data_cleansing.py    # データクレンジング用スクリプト
-├── main.py              # データ解析・レポート生成本体スクリプト
-└── config_golf7_cs.yaml # Golf MKMK7 GTI Clubsport 用設定ファイル（例）
+├── org/                     # 入力用CSV・DiagScanファイル保存先
+├── data/                    # クレンジング後CSV・解析JSON出力先
+├── output/                  # Markdown / PDF 出力先
+├── config/                  # YAML 構成ファイル保存先
+|   └── config_golf7_cs.yaml # Golf MKMK7 GTI Clubsport 用設定ファイル（例）
+├── data_cleansing.py        # データクレンジング用スクリプト
+└── main.py                  # データ解析・レポート生成本体スクリプト
 ```
 
 ---
